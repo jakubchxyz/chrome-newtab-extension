@@ -52,7 +52,7 @@
 
   const origin = location.origin
   chrome.storage.sync.get(['customRules'], (result) => {
-    const all = (result && (result as any).customRules) || {}
+    const all = (result && (result).customRules) || {}
     const rules = all[origin]
     applyRules(rules)
   })

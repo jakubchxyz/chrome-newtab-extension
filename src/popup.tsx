@@ -29,20 +29,51 @@ function Popup() {
   }
 
   async function captureFull() {
-    setStatus('Capturing full page...')
+    setStatus('Starting full page capture...')
+
+    const startTime = Date.now()
+    const timeout = setTimeout(() => {
+      setStatus('Taking longer than expected... This can happen with large pages.')
+    }, 10000)
+
     chrome.runtime.sendMessage({ action: 'capture-fullpage' }, (resp) => {
-      if (!resp || !resp.success) {
-        setStatus('Failed')
+      clearTimeout(timeout)
+
+      if (!resp) {
+        setStatus('❌ No response received')
+        setTimeout(() => setStatus(''), 3000)
         return
       }
-      const link = document.createElement('a')
-      link.href = resp.dataUrl
-      link.download = `fullpage_${Date.now()}.png`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      setStatus('Saved')
-      setTimeout(() => setStatus(''), 1500)
+
+      if (!resp.success) {
+        const errorMsg = resp.error || 'Unknown error'
+        console.error('Full page capture failed:', errorMsg, resp.details)
+        setStatus(`❌ Failed: ${errorMsg}`)
+        setTimeout(() => setStatus(''), 5000)
+        return
+      }
+
+      if (!resp.dataUrl) {
+        setStatus('❌ Failed: No image data received')
+        setTimeout(() => setStatus(''), 3000)
+        return
+      }
+
+      try {
+        const link = document.createElement('a')
+        link.href = resp.dataUrl
+        link.download = `fullpage_${Date.now()}.png`
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1)
+        setStatus(`✅ Saved (${duration}s)`)
+        setTimeout(() => setStatus(''), 2000)
+      } catch (error) {
+        setStatus('❌ Failed to download image')
+        setTimeout(() => setStatus(''), 3000)
+      }
     })
   }
 
@@ -122,12 +153,11 @@ function Popup() {
   }
 
   return (
-    <div className="min-w-80 p-4 bg-zinc-950 text-white">
+    <div className="min-w-80 p-4 bg-zinc-950 text-white" style={{borderRadius: '12px', overflow: 'hidden'}}>
       <div className="text-lg font-semibold mb-3">Screenshot & Customize</div>
       <div className="flex gap-2 mb-4">
         <button onClick={captureVisible} className="px-3 py-2 rounded bg-zinc-800 hover:bg-zinc-700">Visible</button>
         <button onClick={captureFull} className="px-3 py-2 rounded bg-zinc-800 hover:bg-zinc-700">Full page</button>
-        <a className="px-3 py-2 rounded bg-zinc-800 hover:bg-zinc-700" href="chrome://newtab" target="_blank">New Tab</a>
       </div>
 
       <div className="space-y-2 mb-2">
