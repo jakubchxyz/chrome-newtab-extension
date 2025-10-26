@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-const PORTS = [3000, 3001, 3005, 5173, 8080]
+const PORTS = [3000, 3001, 3005, 5173, 8080, 3025]
 
 export default function PortsList() {
   const [activePorts, setActivePorts] = useState<number[]>([])
