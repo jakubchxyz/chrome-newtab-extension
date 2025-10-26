@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 
 // Simple, robust port list: 3000-3050 + popular dev ports
 const generatePorts = () => {
@@ -33,9 +33,7 @@ const PORTS_TO_CHECK = generatePorts()
 
 export default function PortsList() {
   const [activePorts, setActivePorts] = useState<number[]>([])
-  const [displayedPorts, setDisplayedPorts] = useState<number[]>([])
   const [recentPorts, setRecentPorts] = useState<number[]>([])
-  const animationTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     // Load recently active ports from localStorage
@@ -93,32 +91,6 @@ export default function PortsList() {
     setActivePorts(running.sort((a, b) => a - b)) // Sort ports numerically
   }
 
-  // Handle smooth animations when ports change
-  useEffect(() => {
-    if (animationTimeoutRef.current) {
-      clearTimeout(animationTimeoutRef.current)
-    }
-
-    if (activePorts.length > displayedPorts.length) {
-      // Ports are being added - update immediately for smooth appearance
-      setDisplayedPorts(activePorts)
-    } else if (activePorts.length < displayedPorts.length) {
-      // Ports are being removed - delay update for smooth disappearance
-      animationTimeoutRef.current = setTimeout(() => {
-        setDisplayedPorts(activePorts)
-      }, 300) // Match animation duration
-    } else {
-      // Same number of ports, just update the list
-      setDisplayedPorts(activePorts)
-    }
-
-    return () => {
-      if (animationTimeoutRef.current) {
-        clearTimeout(animationTimeoutRef.current)
-      }
-    }
-  }, [activePorts, displayedPorts.length])
-
   useEffect(() => {
     checkPorts()
     const interval = setInterval(checkPorts, 1500) // Check every 1.5 seconds
@@ -126,17 +98,17 @@ export default function PortsList() {
   }, [])
 
   return (
-    <div className="flex justify-center animate-in fade-in duration-500">
-      <div className={`grid gap-3 transition-all duration-500 ease-out ${
-        displayedPorts.length === 0
+    <div className="flex justify-center">
+      <div className={`grid gap-3 ${
+        activePorts.length === 0
           ? ''
-          : displayedPorts.length === 1
+          : activePorts.length === 1
           ? 'grid-cols-1'
-          : displayedPorts.length === 2
+          : activePorts.length === 2
           ? 'grid-cols-1 md:grid-cols-2'
           : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
       }`}>
-        {displayedPorts.length === 0 ? (
+        {activePorts.length === 0 ? (
           // Invisible placeholder to maintain consistent height
           <div className="opacity-0 pointer-events-none">
             <button className="flex items-center justify-center px-4 py-3 rounded-lg">
@@ -147,11 +119,11 @@ export default function PortsList() {
             </button>
           </div>
         ) : (
-          displayedPorts.map((port, index) => (
+          activePorts.map((port, index) => (
             <button
               key={port}
               onClick={() => window.open(`http://localhost:${port}`, '_blank')}
-              className="group flex items-center justify-center px-4 py-3 bg-green-600/20 hover:bg-green-500/30 border border-green-500/30 hover:border-green-500/50 rounded-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4"
+              className="group flex items-center justify-center px-4 py-3 bg-green-600/20 hover:bg-green-500/30 border border-green-500/30 hover:border-green-500/50 rounded-lg port-animation"
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <div className="flex items-center gap-2">
