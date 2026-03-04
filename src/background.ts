@@ -52,6 +52,7 @@ chrome.runtime.onMessage.addListener((req: any, sender: chrome.runtime.MessageSe
   }
 
   if (req.action === 'capture-fullpage') {
+    const splitCapture = !!req.splitCapture
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const currentTab = tabs && tabs[0]
       if (!currentTab || !currentTab.id) {
@@ -65,7 +66,7 @@ chrome.runtime.onMessage.addListener((req: any, sender: chrome.runtime.MessageSe
         return
       }
 
-      chrome.tabs.sendMessage(currentTab.id!, { action: 'FULLPAGE_START' }, (resp) => {
+      chrome.tabs.sendMessage(currentTab.id!, { action: 'FULLPAGE_START', splitCapture }, (resp) => {
         if (chrome.runtime.lastError) {
           const errorMsg = chrome.runtime.lastError.message || 'Unknown communication error'
           console.error('Content script communication failed:', errorMsg)

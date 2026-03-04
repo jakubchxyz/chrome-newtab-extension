@@ -5,11 +5,42 @@
     step: string
   }
 
+  interface CaptureSection {
+    index: number
+    y: number
+    height: number
+    dataUrl: string
+  }
+
+  interface CaptureOptions {
+    splitCapture?: boolean
+  }
+
+  interface CaptureResult {
+    success: true
+    width: number
+    height: number
+    totalSections: number
+    dataUrl?: string
+    sections?: CaptureSection[]
+  }
+
+  interface HiddenElementState {
+    element: HTMLElement
+    previousVisibility: string
+    previousPriority: string
+  }
+
+  interface FullPageStartRequest {
+    action?: string
+    splitCapture?: boolean
+  }
+
   function delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms))
   }
 
-  function sendMessageAsync<T = any>(message: any): Promise<T> {
+  function sendMessageAsync<T = unknown>(message: unknown): Promise<T> {
     return new Promise((resolve, reject) => {
       chrome.runtime.sendMessage(message, (response: T) => {
         if (chrome.runtime.lastError) {
@@ -44,6 +75,41 @@
 
   function getMaxScrollY(): number {
     return Math.max(0, getTotalPageHeight() - window.innerHeight)
+  }
+
+  function hideTopFixedOverlays(topThresholdPx: number = 140): HiddenElementState[] {
+    const hiddenStates: HiddenElementState[] = []
+    const elements = document.querySelectorAll<HTMLElement>('body *')
+
+    for (const element of elements) {
+      const style = window.getComputedStyle(element)
+      if (style.position !== 'fixed' && style.position !== 'sticky') continue
+      if (style.display === 'none' || style.visibility === 'hidden') continue
+
+      const rect = element.getBoundingClientRect()
+      if (rect.width < 1 || rect.height < 1) continue
+      if (rect.bottom <= 0) continue
+      if (rect.top > topThresholdPx) continue
+
+      hiddenStates.push({
+        element,
+        previousVisibility: element.style.getPropertyValue('visibility'),
+        previousPriority: element.style.getPropertyPriority('visibility'),
+      })
+      element.style.setProperty('visibility', 'hidden', 'important')
+    }
+
+    return hiddenStates
+  }
+
+  function restoreHiddenElements(hiddenStates: HiddenElementState[]) {
+    for (const state of hiddenStates) {
+      if (state.previousVisibility) {
+        state.element.style.setProperty('visibility', state.previousVisibility, state.previousPriority)
+      } else {
+        state.element.style.removeProperty('visibility')
+      }
+    }
   }
 
   async function waitForScrollStabilization(targetY: number, timeoutMs: number = 2000): Promise<void> {
@@ -84,7 +150,14 @@
     throw new Error(`Scroll stabilization timeout after ${timeoutMs}ms`)
   }
 
-  async function captureFullPage(onProgress?: (progress: CaptureProgress) => void): Promise<{ success: true, dataUrl: string, width: number, height: number }> {
+  async function captureFullPage(
+    options: CaptureOptions = {},
+    onProgress?: (progress: CaptureProgress) => void,
+  ): Promise<CaptureResult> {
+    let originalX = window.scrollX
+    let originalY = window.scrollY
+    let hiddenOverlays: HiddenElementState[] = []
+
     try {
       onProgress?.({ current: 0, total: 100, step: 'Preparing capture...' })
 
@@ -94,8 +167,8 @@
         throw new Error('Page has no height - cannot capture')
       }
 
-      const originalX = window.scrollX
-      const originalY = window.scrollY
+      originalX = window.scrollX
+      originalY = window.scrollY
       const dpr = window.devicePixelRatio || 1
       const viewportWidth = window.innerWidth
       const viewportHeight = window.innerHeight
@@ -104,6 +177,9 @@
       if (viewportWidth === 0 || viewportHeight === 0) {
         throw new Error('Invalid viewport dimensions')
       }
+
+      hiddenOverlays = hideTopFixedOverlays()
+      await delay(60)
 
       const maxScrollY = Math.max(0, totalHeight - viewportHeight)
       const capturePositions: number[] = []
@@ -147,8 +223,21 @@
         }
       }
 
-      // Restore original scroll position
-      window.scrollTo({ top: originalY, left: originalX, behavior: 'instant' })
+      if (options.splitCapture) {
+        onProgress?.({ current: 100, total: 100, step: 'Captured all sections.' })
+        return {
+          success: true,
+          width: Math.floor(viewportWidth * dpr),
+          height: Math.floor(totalHeight * dpr),
+          totalSections: images.length,
+          sections: images.map((section, index) => ({
+            index: index + 1,
+            y: section.y,
+            height: section.height,
+            dataUrl: section.dataUrl,
+          })),
+        }
+      }
 
       onProgress?.({ current: 80, total: 100, step: 'Compositing images...' })
 
@@ -221,28 +310,39 @@
         success: true,
         dataUrl: finalDataUrl,
         width: canvasWidth,
-        height: canvasHeight
+        height: canvasHeight,
+        totalSections: images.length,
       }
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Full page capture failed:', error)
       throw new Error(`Full page capture failed: ${errorMessage}`)
+    } finally {
+      restoreHiddenElements(hiddenOverlays)
+      window.scrollTo({ top: originalY, left: originalX, behavior: 'instant' })
     }
   }
 
-  chrome.runtime.onMessage.addListener((request: any, _sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
+  chrome.runtime.onMessage.addListener((
+    request: FullPageStartRequest | undefined,
+    _sender: chrome.runtime.MessageSender,
+    sendResponse: (response?: unknown) => void,
+  ) => {
     if (request && request.action === 'FULLPAGE_START') {
       ;(async () => {
         try {
-          const result = await captureFullPage()
+          const result = await captureFullPage({
+            splitCapture: !!request.splitCapture,
+          })
           sendResponse(result)
-        } catch (err: any) {
-          const errorMessage = err instanceof Error ? err.message : String(err?.message || err)
+        } catch (err: unknown) {
+          const errorMessage = err instanceof Error ? err.message : String(err)
+          const details = err instanceof Error ? err.stack : undefined
           sendResponse({
             success: false,
             error: errorMessage,
-            details: err?.stack
+            details,
           })
         }
       })()

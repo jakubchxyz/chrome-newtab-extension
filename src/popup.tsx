@@ -28,15 +28,40 @@ function Popup() {
     })
   }
 
-  async function captureFull() {
-    setStatus('Starting full page capture...')
+  function downloadDataUrl(dataUrl: string, filename: string) {
+    const link = document.createElement('a')
+    link.href = dataUrl
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  }
+
+  function delay(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
+  async function downloadSections(
+    sections: Array<{ index: number; dataUrl: string }>,
+    timestamp: number,
+  ) {
+    for (const section of sections) {
+      const paddedIndex = String(section.index).padStart(3, '0')
+      downloadDataUrl(section.dataUrl, `fullpage_section_${timestamp}_${paddedIndex}.png`)
+      // Small spacing prevents dropped downloads on some browsers.
+      await delay(120)
+    }
+  }
+
+  async function captureFull(splitCapture: boolean = false) {
+    setStatus(splitCapture ? 'Starting split full page capture...' : 'Starting full page capture...')
 
     const startTime = Date.now()
     const timeout = setTimeout(() => {
       setStatus('Taking longer than expected... This can happen with large pages.')
     }, 10000)
 
-    chrome.runtime.sendMessage({ action: 'capture-fullpage' }, (resp) => {
+    chrome.runtime.sendMessage({ action: 'capture-fullpage', splitCapture }, async (resp) => {
       clearTimeout(timeout)
 
       if (!resp) {
@@ -53,25 +78,35 @@ function Popup() {
         return
       }
 
-      if (!resp.dataUrl) {
-        setStatus('❌ Failed: No image data received')
-        setTimeout(() => setStatus(''), 3000)
-        return
-      }
-
       try {
-        const link = document.createElement('a')
-        link.href = resp.dataUrl
-        link.download = `fullpage_${Date.now()}.png`
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
+        const timestamp = Date.now()
+        if (splitCapture) {
+          const sections = Array.isArray(resp.sections) ? resp.sections : []
+          if (sections.length === 0) {
+            setStatus('❌ Failed: No section images received')
+            setTimeout(() => setStatus(''), 3000)
+            return
+          }
+          await downloadSections(sections, timestamp)
+        } else {
+          if (!resp.dataUrl) {
+            setStatus('❌ Failed: No image data received')
+            setTimeout(() => setStatus(''), 3000)
+            return
+          }
+          downloadDataUrl(resp.dataUrl, `fullpage_${timestamp}.png`)
+        }
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(1)
-        setStatus(`✅ Saved (${duration}s)`)
+        if (splitCapture) {
+          const sectionCount = Array.isArray(resp.sections) ? resp.sections.length : 0
+          setStatus(`✅ Saved ${sectionCount} sections (${duration}s)`)
+        } else {
+          setStatus(`✅ Saved (${duration}s)`)
+        }
         setTimeout(() => setStatus(''), 2000)
       } catch (error) {
-        setStatus('❌ Failed to download image')
+        setStatus(splitCapture ? '❌ Failed to download section images' : '❌ Failed to download image')
         setTimeout(() => setStatus(''), 3000)
       }
     })
@@ -157,7 +192,8 @@ function Popup() {
       <div className="text-lg font-semibold mb-3">Screenshot & Customize</div>
       <div className="flex gap-2 mb-4">
         <button onClick={captureVisible} className="px-3 py-2 rounded bg-zinc-800 hover:bg-zinc-700">Visible</button>
-        <button onClick={captureFull} className="px-3 py-2 rounded bg-zinc-800 hover:bg-zinc-700">Full page</button>
+        <button onClick={() => captureFull(false)} className="px-3 py-2 rounded bg-zinc-800 hover:bg-zinc-700">Full page</button>
+        <button onClick={() => captureFull(true)} className="px-3 py-2 rounded bg-zinc-800 hover:bg-zinc-700">Full split</button>
       </div>
 
       <div className="space-y-2 mb-2">
