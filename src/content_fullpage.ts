@@ -42,6 +42,10 @@
     )
   }
 
+  function getMaxScrollY(): number {
+    return Math.max(0, getTotalPageHeight() - window.innerHeight)
+  }
+
   async function waitForScrollStabilization(targetY: number, timeoutMs: number = 2000): Promise<void> {
     const startTime = Date.now()
     let lastScrollY = window.scrollY
@@ -51,11 +55,16 @@
     while (Date.now() - startTime < timeoutMs) {
       await delay(50)
 
+      const maxScrollY = getMaxScrollY()
+      const clampedTargetY = Math.min(Math.max(targetY, 0), maxScrollY)
       const currentScrollY = window.scrollY
-      const distance = Math.abs(currentScrollY - targetY)
+      const distance = Math.abs(currentScrollY - clampedTargetY)
+      const isAtBottom = currentScrollY >= maxScrollY - 2
+      const targetBeyondBottom = targetY > maxScrollY + 2
 
-      // If we're close enough to target and scroll hasn't changed much
-      if (distance < 5 && Math.abs(currentScrollY - lastScrollY) < 2) {
+      // Treat the page bottom as stable even if the original target was unreachable.
+      const reachedStablePosition = distance < 5 || (targetBeyondBottom && isAtBottom)
+      if (reachedStablePosition && Math.abs(currentScrollY - lastScrollY) < 2) {
         stableCount++
         if (stableCount >= requiredStableCount) {
           return
@@ -68,7 +77,7 @@
 
       // Force scroll again if we're not at target
       if (distance > 10) {
-        window.scrollTo({ top: targetY, behavior: 'instant' })
+        window.scrollTo({ top: clampedTargetY, behavior: 'instant' })
       }
     }
 
@@ -96,14 +105,20 @@
         throw new Error('Invalid viewport dimensions')
       }
 
-      const steps = Math.ceil(totalHeight / viewportHeight)
+      const maxScrollY = Math.max(0, totalHeight - viewportHeight)
+      const capturePositions: number[] = []
+      for (let y = 0; y < maxScrollY; y += viewportHeight) {
+        capturePositions.push(y)
+      }
+      capturePositions.push(maxScrollY)
+      const steps = capturePositions.length
       const images: { dataUrl: string; y: number; height: number }[] = []
 
       onProgress?.({ current: 10, total: 100, step: `Capturing ${steps} sections...` })
 
       // Capture each section
       for (let i = 0; i < steps; i++) {
-        const targetY = i * viewportHeight
+        const targetY = capturePositions[i]
 
         // Scroll to position with stabilization
         window.scrollTo({ top: targetY, behavior: 'instant' })
