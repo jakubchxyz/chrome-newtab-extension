@@ -219,7 +219,8 @@
           }
           images.push({ dataUrl: resp.dataUrl, y: actualY, height: visibleHeight })
         } catch (error) {
-          throw new Error(`Failed to capture section ${i + 1}: ${error}`)
+          const message = error instanceof Error ? error.message : String(error)
+          throw new Error(`Failed to capture section ${i + 1}: ${message}`, { cause: error })
         }
       }
 
@@ -317,7 +318,7 @@
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Full page capture failed:', error)
-      throw new Error(`Full page capture failed: ${errorMessage}`)
+      throw new Error(`Full page capture failed: ${errorMessage}`, { cause: error })
     } finally {
       restoreHiddenElements(hiddenOverlays)
       window.scrollTo({ top: originalY, left: originalX, behavior: 'instant' })
@@ -350,5 +351,4 @@
     }
   })
 })()
-
 

@@ -2,7 +2,17 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './index.css'
 
-function Popup() {
+type CustomRules = {
+  enabled: boolean
+  css: string
+  hideSelectors: string[]
+  hideClasses: string[]
+  hideIds: string[]
+}
+
+type CustomRulesByOrigin = Record<string, CustomRules | undefined>
+
+export default function Popup() {
   const [status, setStatus] = React.useState<string>('')
   const [customCss, setCustomCss] = React.useState<string>('')
   const [hideSelectors, setHideSelectors] = React.useState<string>('')
@@ -105,14 +115,14 @@ function Popup() {
           setStatus(`✅ Saved (${duration}s)`)
         }
         setTimeout(() => setStatus(''), 2000)
-      } catch (error) {
+      } catch {
         setStatus(splitCapture ? '❌ Failed to download section images' : '❌ Failed to download image')
         setTimeout(() => setStatus(''), 3000)
       }
     })
   }
 
-  function getOriginFromUrl(url: string | undefined) {
+  const getOriginFromUrl = React.useCallback((url: string | undefined) => {
     if (!url) return null
     try {
       const u = new URL(url)
@@ -120,21 +130,21 @@ function Popup() {
     } catch {
       return null
     }
-  }
+  }, [])
 
-  async function getCurrentTab(): Promise<chrome.tabs.Tab | undefined> {
+  const getCurrentTab = React.useCallback(async (): Promise<chrome.tabs.Tab | undefined> => {
     const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) =>
       chrome.tabs.query({ active: true, currentWindow: true }, resolve),
     )
     return tabs[0]
-  }
+  }, [])
 
-  async function loadRulesForCurrentSite() {
+  const loadRulesForCurrentSite = React.useCallback(async () => {
     const tab = await getCurrentTab()
     const origin = getOriginFromUrl(tab?.url)
     if (!origin) return
     chrome.storage.sync.get(['customRules'], (result) => {
-      const all = (result && (result as any).customRules) || {}
+      const all = ((result as { customRules?: CustomRulesByOrigin }).customRules) || {}
       const rules = all[origin] || {
         enabled: false,
         css: '',
@@ -148,18 +158,18 @@ function Popup() {
       setHideClasses((rules.hideClasses || []).join(', '))
       setHideIds((rules.hideIds || []).join(', '))
     })
-  }
+  }, [getCurrentTab, getOriginFromUrl])
 
   React.useEffect(() => {
     loadRulesForCurrentSite()
-  }, [])
+  }, [loadRulesForCurrentSite])
 
   async function saveRules() {
     const tab = await getCurrentTab()
     const origin = getOriginFromUrl(tab?.url)
     if (!origin) return
     chrome.storage.sync.get(['customRules'], (result) => {
-      const all = (result && (result as any).customRules) || {}
+      const all = ((result as { customRules?: CustomRulesByOrigin }).customRules) || {}
       const newRules = {
         enabled,
         css: customCss,
@@ -231,5 +241,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <Popup />
   </React.StrictMode>,
 )
-
 

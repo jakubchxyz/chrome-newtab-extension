@@ -1,6 +1,11 @@
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('My Dev Dashboard installed')
+  console.log('Screenshot & Customize installed')
 })
+
+type ExtensionMessage = {
+  action?: string
+  splitCapture?: boolean
+}
 
 function captureVisible(windowId: number): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -23,7 +28,7 @@ function captureVisible(windowId: number): Promise<string> {
   })
 }
 
-chrome.runtime.onMessage.addListener((req: any, sender: chrome.runtime.MessageSender, sendResponse) => {
+chrome.runtime.onMessage.addListener((req: ExtensionMessage, sender: chrome.runtime.MessageSender, sendResponse) => {
   if (!req) return
 
   if (req.action === 'capture-screenshot') {
@@ -32,8 +37,8 @@ chrome.runtime.onMessage.addListener((req: any, sender: chrome.runtime.MessageSe
       try {
         const dataUrl = await captureVisible(windowId)
         sendResponse({ success: true, dataUrl })
-      } catch (e: any) {
-        sendResponse({ success: false, error: e?.message })
+      } catch (e: unknown) {
+        sendResponse({ success: false, error: e instanceof Error ? e.message : 'Screenshot capture failed' })
       }
     }
     if (windowIdFromSender !== undefined) {
@@ -88,4 +93,3 @@ chrome.runtime.onMessage.addListener((req: any, sender: chrome.runtime.MessageSe
     return true
   }
 })
-

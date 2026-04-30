@@ -37,7 +37,17 @@
     return `${selectors.join(', ')} { display: none !important; }\n`
   }
 
-  function applyRules(rules: any) {
+  type CustomRules = {
+    enabled?: boolean
+    css?: string
+    hideSelectors?: string[]
+    hideClasses?: string[]
+    hideIds?: string[]
+  }
+
+  type CustomRulesByOrigin = Record<string, CustomRules | undefined>
+
+  function applyRules(rules?: CustomRules) {
     if (!rules || rules.enabled !== true) {
       clearCustomization()
       return
@@ -52,7 +62,7 @@
 
   const origin = location.origin
   chrome.storage.sync.get(['customRules'], (result) => {
-    const all = (result && (result).customRules) || {}
+    const all = ((result as { customRules?: CustomRulesByOrigin }).customRules) || {}
     const rules = all[origin]
     applyRules(rules)
   })
@@ -65,5 +75,4 @@
     }
   })
 })()
-
 

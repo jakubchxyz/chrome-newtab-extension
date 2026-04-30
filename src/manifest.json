@@ -1,11 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "My Dev Dashboard",
+  "name": "Screenshot & Customize",
   "version": "1.0.0",
-  "description": "Developer-focused new tab with quick links, ports, and search.",
+  "description": "Capture screenshots and customize pages from the extension popup.",
   "action": { "default_popup": "popup.html", "default_icon": { "128": "icon128.png" } },
   "icons": { "128": "icon128.png" },
-  "chrome_url_overrides": { "newtab": "newtab.html" },
   "background": { "service_worker": "src/background.ts", "type": "module" },
   "permissions": ["tabs", "storage", "scripting", "activeTab"],
   "host_permissions": ["<all_urls>"],
@@ -17,5 +16,4 @@
     }
   ]
 }
-
 
