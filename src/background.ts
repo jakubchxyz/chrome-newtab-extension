@@ -7,7 +7,21 @@ type ExtensionMessage = {
   splitCapture?: boolean
 }
 
-function captureVisible(windowId: number): Promise<string> {
+const MIN_VISIBLE_CAPTURE_INTERVAL_MS = 650
+const MAX_VISIBLE_CAPTURE_ATTEMPTS = 3
+
+let nextVisibleCaptureAt = 0
+let visibleCaptureQueue = Promise.resolve()
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isCaptureQuotaError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND')
+}
+
+function captureVisibleOnce(windowId: number): Promise<string> {
   return new Promise((resolve, reject) => {
     chrome.tabs.captureVisibleTab(
       windowId,
@@ -26,6 +40,41 @@ function captureVisible(windowId: number): Promise<string> {
       },
     )
   })
+}
+
+function captureVisible(windowId: number): Promise<string> {
+  const queuedCapture = visibleCaptureQueue.then(async () => {
+    let lastError: unknown
+
+    for (let attempt = 1; attempt <= MAX_VISIBLE_CAPTURE_ATTEMPTS; attempt++) {
+      const waitMs = nextVisibleCaptureAt - Date.now()
+      if (waitMs > 0) {
+        await delay(waitMs)
+      }
+
+      try {
+        const dataUrl = await captureVisibleOnce(windowId)
+        nextVisibleCaptureAt = Date.now() + MIN_VISIBLE_CAPTURE_INTERVAL_MS
+        return dataUrl
+      } catch (error) {
+        lastError = error
+        nextVisibleCaptureAt = Date.now() + MIN_VISIBLE_CAPTURE_INTERVAL_MS
+
+        if (!isCaptureQuotaError(error) || attempt === MAX_VISIBLE_CAPTURE_ATTEMPTS) {
+          break
+        }
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error('Screenshot capture failed')
+  })
+
+  visibleCaptureQueue = queuedCapture.then(
+    () => undefined,
+    () => undefined,
+  )
+
+  return queuedCapture
 }
 
 chrome.runtime.onMessage.addListener((req: ExtensionMessage, sender: chrome.runtime.MessageSender, sendResponse) => {
