@@ -198,10 +198,28 @@ export default function Popup() {
   }
 
   return (
-    <div className="min-w-80 p-4 bg-zinc-950 text-white" style={{borderRadius: '12px', overflow: 'hidden'}}>
+    <div className="popup-shell min-w-80 p-4 bg-zinc-950 text-white">
       <div className="text-lg font-semibold mb-3">Screenshot & Customize</div>
       <div className="flex gap-2 mb-4">
-        <button onClick={captureVisible} className="px-3 py-2 rounded bg-zinc-800 hover:bg-zinc-700">Visible</button>
+        <button
+          onClick={captureVisible}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded bg-zinc-800 hover:bg-zinc-700"
+        >
+          <svg
+            aria-hidden="true"
+            className="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M14.5 4 16 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l1.5-3h5Z" />
+            <circle cx="12" cy="13" r="3" />
+          </svg>
+          <span>Visible</span>
+        </button>
         <button onClick={() => captureFull(false)} className="px-3 py-2 rounded bg-zinc-800 hover:bg-zinc-700">Full page</button>
         <button onClick={() => captureFull(true)} className="px-3 py-2 rounded bg-zinc-800 hover:bg-zinc-700">Full split</button>
       </div>

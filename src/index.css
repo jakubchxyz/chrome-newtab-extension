@@ -26,10 +26,23 @@ html, body {
   font-weight: 400;
 }
 
-/* Extension popup specific styling */
-body:has(#root > div > div.min-w-80) {
-  border-radius: 12px !important;
-  overflow: hidden !important;
+/* Extension popup surface. The transparent gutter makes its rounded shape visible. */
+html,
+body,
+#root {
+  margin: 0;
+  background: transparent !important;
+}
+
+body {
+  padding: 6px;
+  overflow: hidden;
+}
+
+.popup-shell {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
 }
 
 /* Port animation */
@@ -47,5 +60,4 @@ body:has(#root > div > div.min-w-80) {
     transform: translateY(0);
   }
 }
-
 
