@@ -1,73 +1,73 @@
-# React + TypeScript + Vite
+# Screenshot & Customize
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+One Chrome extension for screenshots, page customization, YouTube enhancements,
+and the Dark Forest new-tab page, plus an optional companion browser theme.
 
-Currently, two official plugins are available:
+## Install
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Run commands from the repository root:
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npm ci
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open `chrome://extensions`, enable Developer mode, and use **Load unpacked**:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| Folder | What it installs |
+| --- | --- |
+| `dist` | Screenshot & Customize, including the forest new-tab page |
+| `chrome-theme/theme` | Dark Forest UI: dark browser tabs and toolbar |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Those are the only two installable packages. The theme needs no build step.
+The old standalone Dark Forest new-tab extension is no longer part of this
+project; remove or leave disabled any old **Dark Forest** entry in Chrome.
+
+Keep the loaded folders in place. Chrome reads unpacked extensions directly
+from their original paths. After rebuilding, reload **Screenshot & Customize**
+on `chrome://extensions` and open a fresh tab. If Chrome asks about the new-tab
+change, choose to keep it. The companion theme installation path is unchanged.
+
+## Development
+
+```sh
+npm run dev      # Vite development server
+npm run build    # Type-check and build the main extension into dist
+npm run lint     # Lint the source
+npm run preview  # Preview built pages; Chrome APIs require an installed extension
 ```
+
+## Project layout
+
+```text
+src/
+  manifest.json           Main extension manifest
+  background/index.ts     Screenshot capture and message handling
+  content/
+    customize.ts          Per-site CSS and element hiding
+    fullpage.ts           Full-page screenshot capture
+    youtube/              YouTube styles, cinema mode, and recommendations
+  popup/
+    main.tsx              Popup tools and settings
+    styles.css            Popup-only styles
+  newtab/
+    main.tsx              New-tab entry point
+    App.tsx               Forest background
+    styles.css            New-tab-only styles
+    forest.jpg            Bundled background image
+public/
+  icon128.png             Main extension icon
+chrome-theme/
+  theme/manifest.json     Standalone browser colors (no JavaScript or npm project)
+index.html                New-tab HTML entry
+popup.html                Popup HTML entry
+vite.config.ts            Shared build configuration
+```
+
+There is one npm project, lockfile, and main build output. Popup and new-tab
+styles are separate. Browser theme colors remain a separate Chrome package.
+Generated `dist`, `node_modules`, and `Cached Theme.pak` files are ignored by Git.
+
+The main extension version is recorded in `src/manifest.json`; keep it aligned
+with the root package version when releasing. The companion theme has its own
+version in `chrome-theme/theme/manifest.json`.
