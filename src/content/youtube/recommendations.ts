@@ -2,6 +2,7 @@
   const ROOT_CLASS = 'sac-youtube-recommendations-row'
   const BUTTON_ID = 'sac-youtube-recommendations-button'
   const STYLE_ID = 'sac-youtube-recommendations-style'
+  const STORAGE_KEY = 'youtubeRecommendationsReversed'
 
   let enabled = false
   let injectTimer: number | undefined
@@ -95,7 +96,10 @@ html[dark] #${BUTTON_ID}:focus-visible {
         <path d="m7.41 7.41-1.42-1.42L2 10l3.99 4.01 1.42-1.42L5.83 11H16v-2H5.83l1.58-1.59ZM16.59 16.59l1.42 1.42L22 14l-3.99-4.01-1.42 1.42L18.17 13H8v2h10.17l-1.58 1.59Z" />
       </svg>
     `
-    button.addEventListener('click', () => setEnabled(!enabled))
+    button.addEventListener('click', () => {
+      setEnabled(!enabled)
+      chrome.storage.sync.set({ [STORAGE_KEY]: enabled })
+    })
     return button
   }
 
@@ -119,6 +123,16 @@ html[dark] #${BUTTON_ID}:focus-visible {
 
   const observer = new MutationObserver(scheduleEnsureButton)
   observer.observe(document.documentElement, { childList: true, subtree: true })
+
+  chrome.storage.sync.get([STORAGE_KEY], (result) => {
+    setEnabled(result[STORAGE_KEY] === true)
+  })
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync' && STORAGE_KEY in changes) {
+      setEnabled(changes[STORAGE_KEY].newValue === true)
+    }
+  })
 
   ensureButton()
 })()
